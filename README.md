@@ -40,4 +40,7 @@ TO DOS:
 
 	* Create a view of all migrations/imports from the custom_migrate_migrations. Allowing user to see information about migrations
 	* Create ability to enter target site language.
-	* Add ability to import user/creator with node
+	* Add ability to import user/creator with node, setting whether to import user
+	* Indicate in View whether an item has already been exported.
+	* Do not allow same node to be imported more than once (or providing setting to enforce that)
+	* Add Notes/Description field to the Import form and save to table a description or notes on each import/migration
