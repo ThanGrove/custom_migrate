@@ -1,0 +1,354 @@
+<?php
+
+/**
+ *    EXPORTING FUNCTIONS
+ */
+ 
+/**
+ * @file
+ * Provides an action for exporting Tibetan Womens nodes and one for importing such export into Tibet Library Site
+ * An entry in the {file_managed} table is created for the newly created archive,
+ * and it is marked as permanent or temporary based on the operation settings.
+ */
+
+ 
+function custom_migrate_action_info() {
+  $actions = array();
+   return array(
+    'custom_migrate_export_item' => array(
+      'type' => 'node',
+      'label' => t('Custom Migrate (Shanti)'),
+      'configurable' => FALSE,
+      'vbo_configurable' => TRUE,
+      'behavior' => array('changes_property'),
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+function custom_migrate_export_item($entity, $context) {
+  /* place holder for action item. All action occurs with the settings form for this action at:
+   *      custom_migrate_export_item_form
+   * But this function must still be here. I think
+   */
+   
+}
+
+function custom_migrate_export_item_form($context, &$form_state) {
+  $nodes = $form_state['selection'];
+  $out = _custom_migrate_serialize_nodes($nodes);
+  $nlist = array();
+  foreach($nodes as $nid) {
+    $node = node_load($nid);
+    $nlist[] = $node->title . ' (' . $node->type . ', ' . $node->nid . ')';
+  }
+  $ra = array(
+    'intro' => array(
+      '#type' => 'markup',
+      '#markup' => '<p>The folowing nodes have been exported: </p>'
+    ),
+    'node_list' => array(
+      '#items' => $nlist,
+      '#theme' => 'item_list',
+    ),
+  );
+  $form['ei_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Export Info',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['ei_fieldset']['export_info'] = array(
+    '#type' => 'markup',
+    '#markup' => '<div>' . drupal_render($ra) . '</div>',
+  );
+  $form['serialize_data'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Serialized Node Info'),
+    '#default_value' => $out,
+    '#rows' => 10,
+    '#description' => t('This is the serialized form of the data for each node. Copy it and go to to the /custom/import form on the target site. Paste it into that form and press "Import".'),
+    '#attributes' => array(
+      'wrap' => 'off',
+    ),
+    '#wysiwyg' => FALSE,
+  );
+  $form['custom_migrate'] = array(
+    '#type' => 'hidden',
+    '#value' => 'cmform',
+  );
+  return $form;
+}
+
+function custom_migrate_export_item_submit($form, &$form_state) {
+  $nodes = $form_state['selection'];
+  $msg = "No Changes have been made to the database. You just looked at the following nodes: ";
+  foreach ($nodes as $index => $nid) {
+    $msg .= $nid . ', ';
+  }
+  $msg = substr($msg, 0, strlen($msg) - 2) . '.';
+  drupal_set_message($msg);
+  drupal_goto(current_path()); // return to vbo view that initiated output
+}
+
+function _custom_migrate_serialize_nodes($nodes) {
+  $out = array();
+  foreach($nodes as $ind => $nid) {
+    $node = node_load($nid);
+    $nodeout = array(
+      'nid' => $nid,
+      'title' => $node->title . ' [NEW]',
+      'body' => $node->body,
+      'type' => $node->type,
+    );
+    if(module_exists('book') && isset($node->book)) {
+      $nodeout['mlid'] = $node->book['mlid'];
+      $nodeout['obid'] = $node->book['bid'];
+      $nodeout['opid'] = $node->book['p1'];
+    }
+    $out[] = $nodeout;
+  }
+  $out[] = array('nid' => 'end');
+  return base64_encode(serialize($out));
+}
+
+function custom_migrate_form_alter(&$form, &$form_state, $form_id) {
+  if(isset($form['custom_migrate'])) {
+    $form['actions']['submit']['#value'] = t('Done');
+    $form['actions']['submit']['#suffix'] = '';
+  } 
+}
+
+/*
+ *       IMPORTING FUNCTIONS
+ */
+ 
+
+/**
+ * @file
+ * Implements hook_menu to provide path to upload form for importing nodes
+ */
+ 
+function custom_migrate_menu() {
+  $items = array(
+    'custom/import' => array(
+      'title' => 'Import Nodes from Custom Migrate (Shanti)',
+      'description' => "Import data exported by the Custom Migrate modules",
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('custom_migrate_import_form'),
+      'access arguments' => array('create new books'),
+      'type' => MENU_LOCAL_TASK,
+    ),
+  );
+  return $items;
+}
+
+
+function custom_migrate_import_form($form, $form_state) {
+  global $user;
+  $form['box'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Custom Import'),
+    '#description' => t('Paste the data from an export into the text area below and press submit to import nodes.'),
+    '#collapsible' => TRUE,
+    '#collapsed' => False,
+  );
+  
+  $form['box']['submit1'] = array(
+    '#type' => 'submit',
+    '#value' => 'Import Data',
+    '#prefix' => '<div style="float:right; margin-top: -30px;">',
+    '#suffix' => '<input type="reset" class="form-button" value="Clear" style="margin-left: 30px;"></div>',
+  );
+  $form['box']['site'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Source Site Name',
+    '#size' => 40,
+    '#required' => TRUE,
+  );
+  $form['box']['aid'] = array(
+    '#type' => 'select',
+    '#title' => t('New Author ID:'),
+    '#options' => _get_all_user_array(),
+    '#default_value' => $user->uid,
+    '#description' => 'Choose an existing user to assign as author of new nodes',
+    '#required' => TRUE,
+  );
+  $form['box']['customdata'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Put data here:'),
+    '#rows' => 30,
+    '#cols' => 30,
+    '#required' => TRUE,
+  );
+  
+  $form['box']['submit2'] = array(
+    '#type' => 'submit',
+    '#value' => 'Import Data',
+    '#prefix' => '<div style="width: 100%; padding-left: 40%;">',
+    '#suffix' => '<input type="reset" class="form-button" value="Clear" style="margin-left: 30px;"></div>',
+  );
+  
+  return $form;
+}
+
+/**
+ * _get_all_user_array: Creates an array of user names indexed on uid for form select.
+ */
+function  _get_all_user_array() {
+  $uout = array();
+  $q = db_query('SELECT uid, name FROM {users}');
+  while ($row = $q->fetchAssoc()) {
+    if($row['uid'] > 0) {
+      $uout[$row['uid']] = $row['name'];
+    }
+  }
+  return $uout;
+}
+
+/**
+ *  Validates the custom migrate import form
+ *     This is writes import information into the migrations table
+ */
+function custom_migrate_import_form_validate($form, &$form_state) {
+  global $user;
+  $data = $form_state['values']['customdata'];
+  $datanodes = unserialize(base64_decode($data));
+  if(!is_array($datanodes)) {
+    form_set_error('Data Error',t('Data field was not readable by Drupal. Data needs to have been exported by this module.'));
+  }
+  if((int)$form_state['values']['aid'] < 1) {
+    form_set_error('Author Error', t('Author ID was invalid.'));
+  }
+  
+  $source = $form_state['values']['site'];
+  $nodenum = count($datanodes);
+  $uid = $user->uid;
+  $aid = $form_state['values']['aid'];
+  $status = 0;
+  $created = REQUEST_TIME;
+  $mid = db_insert('custom_migrate_migrations')
+            ->fields(array(
+                'source' => $source,
+                'data' => $data,
+                'nodenum' => $nodenum,
+                'aid' => $aid,
+                'uid' => $uid,
+                'status' => $status,
+                'created' => $created,
+            ))->execute();
+  $form_state['values']['migrationid'] = $mid;
+}
+
+function custom_migrate_import_form_submit($form, $form_state) {
+  $datanodes = unserialize(base64_decode($form_state['values']['customdata']));
+  foreach($datanodes as $nodeinfo) {
+    if($nodeinfo['nid'] == 'end') { break; } // Array with single element does not serialize properly so add faux element nid=end. See _custom_migrate_serialize_nodes()
+    $node = new stdClass();
+    $node->title = $nodeinfo['title'];
+    $node->type = $nodeinfo['type'];
+    if($nodeinfo['type'] == 'shanti_essay_top') {
+      $node->book['bid'] = 'new';
+    }
+    $node->body = array();
+    $node->body['bo'] = $nodeinfo['body']['en'];
+    $node->body['bo'][0]['format'] = 'panopoly_wysiwyg_text';
+    $node->body = $nodeinfo['body']; // overriding above code
+    $node->uid = $form_state['values']['aid'];
+    if (!is_numeric($node->uid)) { $node->uid = 1; }
+    node_save($node);
+    if(isset($node->title) && isset($nodeinfo['nid'])) {
+      drupal_set_message(t('@title (<a href="@url">@nid</a>) was created as a @type from old node (@onid)', array(
+          '@url' => url('node/' . $node->nid),
+          '@title' => $node->title, 
+          '@nid' => $node->nid, 
+          '@type' => $node->type,
+          '@onid' => $nodeinfo['nid'])));
+    }
+    // Add to migrated book if it exists
+    if(isset($nodeinfo['obid'])) {
+      $query = db_select('custom_migrate_nodes', 'cu')
+        ->condition('cu.obid', $nodeinfo['obid'], '=')
+        ->fields('cu', array('nid', 'onid', 'obid', 'omlid'))
+        ->execute();
+      foreach ($query as $record) {
+        // Code to add page to book was taken from https://drupal.org/node/578618 and https://drupal.org/files/issues/book.action.inc_.txt
+        if($record->onid === $record->obid) { // only get the book record where old nid = old bid
+          $bid = $record->nid; // set this to the nid of the book parent.
+          $booknode = node_load($bid);
+          $plid = $booknode->book['mlid']; //set this to the mlid of the book parent. you can find this by looking in the "add child to book" link rendered on the parent page.
+          $menu_name = 'book-toc-' . $bid; // the number here should also be set to the nid as above.
+          $link_path = 'node/'. $node->nid;
+          $router_path = 'node/%';
+          $link_title = $node->title;
+          $options = 'a:0:{}';
+          $module = 'book';
+          $depth = 2;
+          $mlid = db_query("SELECT MAX(mlid) as mlid FROM {menu_links}")->fetchField();
+          $mlid = $mlid + 1; 
+          $result = db_insert('menu_links')
+                    ->fields(array(
+                      'menu_name' => $menu_name,
+                      'plid' => $plid,
+                      'link_path' => $link_path,
+                      'router_path' => $router_path,
+                      'link_title' => $link_title,
+                      'options' => $options,
+                      'module' => $module,
+                      'depth' => $depth,
+                      'p1' => $plid,
+                      'p2' => $mlid,
+                    ))->execute();
+
+          $mlid = db_query("SELECT MAX(mlid) as mlid FROM {menu_links}")->fetchField(); // or db_last_insert_id('menu_links', 'mlid');
+          //db_query("INSERT INTO {book} (nid, mlid, bid) VALUES (%d, %d, %d)", $node->nid, $mlid, $bid);
+          $result = db_insert('book')
+                    ->fields(array(
+                      'nid' => $node->nid,
+                      'mlid' => $mlid,
+                      'bid' => $bid,
+                    ))->execute();
+          node_save($node);
+          drupal_set_message(t('@nid has been added as a child page to @ptitle (@pid).', array(
+            '@nid' => $node->nid,
+            '@ptitle' => $booknode->title, 
+            '@pid' => $bid)));
+        }
+      }
+      
+      $migid = $form_state['values']['migrationid'];
+      
+      // Add current node to custom migrate database
+      $result = db_insert('custom_migrate_nodes')
+        ->fields(array(
+            'nid' => $node->nid,
+            'onid' => $nodeinfo['nid'],
+            'obid' => $nodeinfo['obid'],
+            'omlid' => $nodeinfo['mlid'],
+            'opid' => $nodeinfo['opid'],
+            'migrationid' => $migid,
+        ))
+        ->execute();
+        
+      // Update status of import to 1 (successful)
+      $result = db_update('custom_migrate_migrations')
+                  ->fields(array(
+                    'status' => 1,
+                  ))
+                  ->condition(
+                    'id', $migid, '='
+                  )
+                  ->execute();
+    }
+  }
+}
+ 
+/*
+ * implements hook_node_delete: Remove nid from custom migrate table when node is deleted
+ */
+function custom_migrate_node_delete($node) {
+  $nid = $node->nid;
+  $numdel = db_delete('custom_migrate_nodes')
+            ->condition('nid', $nid)
+            ->execute();
+}

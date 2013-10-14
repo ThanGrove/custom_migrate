@@ -1,0 +1,13 @@
+name = Custom Migrate For Tibet Library
+description = "A custom module to migrate nodes for Tibet Library."
+package = Than's Stuff
+core = 7.x
+
+files[] = custom_migrate.module
+
+
+version = "7.x-0.1-alpha1"
+core = "7.x"
+project = "ndgtest"
+datestamp = "1381501540"
+ 

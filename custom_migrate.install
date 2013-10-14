@@ -1,0 +1,122 @@
+<?php
+ 
+/**
+ * @file
+ * Creates a table for storing old MLIDs to recreate book hierarchies on target site
+ *   Only does one level of parents.
+ */
+ 
+function custom_migrate_schema() {
+  $schema['custom_migrate_migrations'] = array(
+    'description' => t('A table that keeps track of the migrations performed on a site'),
+    'fields' => array(
+      'id' => array(
+        'description' => t('Entry ID'),
+        'type' => 'serial',
+        'unsigned' => TRUE, 
+        'not null' => TRUE,
+      ),
+     'source' => array(
+        'description' => t('Source Site'),
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
+      'data' => array(
+        'description' => t('Imported Data'),
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ),
+      'nodenum' => array(
+        'description' => t('Number of Nodes Migrated'),
+        'type' => 'int',
+        'size' => 'medium',
+        'unsigned' => TRUE,
+      ),
+      'aid' => array(
+        'description' => t('Assigned Author ID'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => t('Importer User ID'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'status' => array(
+        'description' => t('Status of the Migration'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+      ),
+      'created'   => array(
+        'description' => t('Date Migrated'),
+        'type' => 'int', 
+        'not null' => TRUE, 
+      ),
+    ),
+    'unique keys' => array(
+      'id' => array('id'),
+    ),
+    'primary key' => array('id'),
+  );
+  
+  $schema['custom_migrate_nodes'] = array(
+    'description' => t('A table of correspondences used by the custom migrate module for Shanti.'),
+    'fields' => array(
+      'id' => array(
+        'description' => t('Entry ID'),
+        'type' => 'serial',
+        'unsigned' => TRUE, 
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => t('Node ID'),
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'onid' => array(
+        'description' => t('Old Node ID'),
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'obid' => array(
+        'description' => t('Old Book ID'),
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'omlid' => array(
+        'description' => t('Original Book ID'),
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'opid' => array(
+        'description' => t('Old Parent ID'),
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'migrationid' => array(
+        'description' => t('ID of Migration'),
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+      ),
+    ),
+    
+    'unique keys' => array(
+      'id' => array('id'),
+    ),
+    
+    'foreign keys' => array(
+      'migration' => array(
+        'table' => 'custom_migrate_migrations',
+        'columns' => array('migrationid' => 'id'),
+       ),
+     ),
+     
+     'primary key' => array('id'),
+  );
+  return $schema;
+}
