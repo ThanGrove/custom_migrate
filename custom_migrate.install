@@ -16,6 +16,12 @@ function custom_migrate_schema() {
         'unsigned' => TRUE, 
         'not null' => TRUE,
       ),
+     'title' => array(
+        'description' => t('Migration Title'),
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
      'source' => array(
         'description' => t('Source Site'),
         'type' => 'varchar',

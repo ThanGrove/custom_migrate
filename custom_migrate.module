@@ -160,9 +160,15 @@ function custom_migrate_import_form($form, $form_state) {
     '#prefix' => '<div style="float:right; margin-top: -30px;">',
     '#suffix' => '<input type="reset" class="form-button" value="Clear" style="margin-left: 30px;"></div>',
   );
-  $form['box']['site'] = array(
+  $form['box']['title'] = array(
     '#type' => 'textfield',
-    '#title' => 'Source Site Name',
+    '#title' => 'Migration Title',
+    '#size' => 40,
+    '#required' => TRUE,
+  );
+  $form['box']['source'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Migration Site URL',
     '#size' => 40,
     '#required' => TRUE,
   );
@@ -220,8 +226,8 @@ function custom_migrate_import_form_validate($form, &$form_state) {
   if((int)$form_state['values']['aid'] < 1) {
     form_set_error('Author Error', t('Author ID was invalid.'));
   }
-  
-  $source = $form_state['values']['site'];
+  $title = $form_state['values']['title'];
+  $source = $form_state['values']['source'];
   $nodenum = count($datanodes);
   $uid = $user->uid;
   $aid = $form_state['values']['aid'];
@@ -229,6 +235,7 @@ function custom_migrate_import_form_validate($form, &$form_state) {
   $created = REQUEST_TIME;
   $mid = db_insert('custom_migrate_migrations')
             ->fields(array(
+                'title' => $title,
                 'source' => $source,
                 'data' => $data,
                 'nodenum' => $nodenum,
@@ -309,10 +316,11 @@ function custom_migrate_import_form_submit($form, $form_state) {
                       'bid' => $bid,
                     ))->execute();
           node_save($node);
-          drupal_set_message(t('@nid has been added as a child page to @ptitle (@pid).', array(
+          drupal_set_message(t('@nid has been added as a child page to <a href="@url">@ptitle (@pid)</a>.', array(
             '@nid' => $node->nid,
             '@ptitle' => $booknode->title, 
-            '@pid' => $bid)));
+            '@pid' => $bid,
+            '@url' => url('node/' . $bid))));
         }
       }
       
