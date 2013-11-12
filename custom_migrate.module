@@ -172,6 +172,12 @@ function custom_migrate_import_form($form, $form_state) {
     '#size' => 40,
     '#required' => TRUE,
   );
+  $form['box']['text_format'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Name of Text Format to use',
+    '#size' => 40,
+    '#required' => TRUE,
+  );
   $form['box']['aid'] = array(
     '#type' => 'select',
     '#title' => t('New Author ID:'),
@@ -253,7 +259,6 @@ function custom_migrate_import_form_submit($form, $form_state) {
   $nct = 0;
   $epgct = 0;
   $migid = $form_state['values']['migrationid'];
-  
   foreach($datanodes as $nodeinfo) {
     if($nodeinfo['nid'] == 'end') { break; } // Array with single element does not serialize properly so add faux element nid=end. See _custom_migrate_serialize_nodes()
     $node = new stdClass();
@@ -263,9 +268,8 @@ function custom_migrate_import_form_submit($form, $form_state) {
       $node->book['bid'] = 'new';
     }
     $node->body = array();
-    $node->body['bo'] = $nodeinfo['body']['en'];
+    $node->body['bo'] = $nodeinfo['body']['und'];
     $node->body['bo'][0]['format'] = 'panopoly_wysiwyg_text';
-    $node->body = $nodeinfo['body']; // overriding above code
     $node->uid = $form_state['values']['aid'];
     if (!is_numeric($node->uid)) { $node->uid = 1; }
     node_save($node);
