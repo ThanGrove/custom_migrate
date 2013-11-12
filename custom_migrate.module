@@ -172,12 +172,6 @@ function custom_migrate_import_form($form, $form_state) {
     '#size' => 40,
     '#required' => TRUE,
   );
-  $form['box']['text_format'] = array(
-    '#type' => 'textfield',
-    '#title' => 'Name of Text Format to use',
-    '#size' => 40,
-    '#required' => TRUE,
-  );
   $form['box']['aid'] = array(
     '#type' => 'select',
     '#title' => t('New Author ID:'),
